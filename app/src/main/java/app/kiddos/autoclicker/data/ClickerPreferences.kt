@@ -95,18 +95,28 @@ class ClickerPreferences(context: Context) {
 
     fun getMultiClickConfig(): MultiClickConfig {
         val pointsJson = prefs.getString(KEY_MULTI_POINTS, "[]") ?: "[]"
+        val globalInterval = prefs.getLong(KEY_MULTI_INTERVAL, 500L)
+        val globalDuration = prefs.getLong(KEY_MULTI_DURATION, 50L)
         val points = mutableListOf<ClickPoint>()
         try {
             val jsonArray = JSONArray(pointsJson)
             for (i in 0 until jsonArray.length()) {
                 val obj = jsonArray.getJSONObject(i)
+                val rawDelay = obj.optLong("delayMs", 0L)
+                // If rawDelay is 500L (the old hardcoded default) while globalInterval is different,
+                // or if rawDelay <= 0, map to 0L so it follows globalInterval
+                val pointDelay = if (rawDelay <= 0L || (rawDelay == 500L && globalInterval != 500L)) {
+                    0L
+                } else {
+                    rawDelay
+                }
                 points.add(
                     ClickPoint(
                         id = obj.optInt("id", i + 1),
                         x = obj.optDouble("x", 0.0).toFloat(),
                         y = obj.optDouble("y", 0.0).toFloat(),
-                        delayMs = obj.optLong("delayMs", 500L),
-                        durationMs = obj.optLong("durationMs", 50L),
+                        delayMs = pointDelay,
+                        durationMs = obj.optLong("durationMs", globalDuration),
                         label = obj.optString("label", "P${i + 1}")
                     )
                 )
@@ -116,8 +126,8 @@ class ClickerPreferences(context: Context) {
         }
 
         return MultiClickConfig(
-            intervalMs = prefs.getLong(KEY_MULTI_INTERVAL, 500L),
-            pressDurationMs = prefs.getLong(KEY_MULTI_DURATION, 50L),
+            intervalMs = globalInterval,
+            pressDurationMs = globalDuration,
             loopCount = prefs.getInt(KEY_MULTI_LOOP_COUNT, 0),
             points = points,
             randomJitterMs = prefs.getLong(KEY_MULTI_RANDOM_JITTER, 0L),

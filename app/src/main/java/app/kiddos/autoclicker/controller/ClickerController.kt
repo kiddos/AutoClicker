@@ -13,6 +13,7 @@ import app.kiddos.autoclicker.model.MultiClickConfig
 import app.kiddos.autoclicker.model.SingleClickConfig
 import app.kiddos.autoclicker.model.StopCondition
 import app.kiddos.autoclicker.service.AutoClickerAccessibilityService
+import app.kiddos.autoclicker.service.AutoClickerTileService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -80,8 +81,12 @@ object ClickerController {
 
     private var executionStartTime = 0L
     private var lastClickTimestamp = 0L
+    private var appContext: Context? = null
 
     fun init(context: Context) {
+        if (appContext == null) {
+            appContext = context.applicationContext
+        }
         if (preferences == null) {
             preferences = ClickerPreferences(context.applicationContext)
             loadConfigs()
@@ -92,7 +97,11 @@ object ClickerController {
         preferences?.let { prefs ->
             _currentMode.value = prefs.getMode()
             _singleConfig.value = prefs.getSingleClickConfig()
-            _multiConfig.value = prefs.getMultiClickConfig()
+            val multi = prefs.getMultiClickConfig()
+            _multiConfig.value = multi
+            if (multi.points.isNotEmpty() && _activePoints.value.isEmpty()) {
+                _activePoints.value = multi.points
+            }
             _gridConfig.value = prefs.getGridConfig()
         }
     }
@@ -103,8 +112,26 @@ object ClickerController {
     }
 
     fun updateMultiConfig(config: MultiClickConfig) {
-        _multiConfig.value = config
-        preferences?.saveMultiClickConfig(config)
+        val oldInterval = _multiConfig.value.intervalMs
+        val isIntervalChanged = config.intervalMs != oldInterval
+
+        val basePoints = if (config.points.isNotEmpty()) config.points else _activePoints.value
+        val updatedPoints = basePoints.map { pt ->
+            if (isIntervalChanged && (pt.delayMs == oldInterval || pt.delayMs == 500L || pt.delayMs <= 0L)) {
+                pt.copy(delayMs = 0L)
+            } else if (pt.delayMs == 500L && config.intervalMs != 500L) {
+                pt.copy(delayMs = 0L)
+            } else {
+                pt
+            }
+        }
+
+        val finalConfig = config.copy(points = updatedPoints)
+        _multiConfig.value = finalConfig
+        if (_currentMode.value == ClickerMode.MULTI) {
+            _activePoints.value = updatedPoints
+        }
+        preferences?.saveMultiClickConfig(finalConfig)
     }
 
     fun updateGridConfig(config: GridConfig) {
@@ -118,6 +145,24 @@ object ClickerController {
         }
         _currentMode.value = mode
         preferences?.setMode(mode)
+        when (mode) {
+            ClickerMode.SINGLE -> {
+                if (_activePoints.value.size != 1) {
+                    val p = _activePoints.value.firstOrNull()
+                    if (p != null) {
+                        _activePoints.value = listOf(p.copy(id = 1, label = "1"))
+                    }
+                }
+            }
+            ClickerMode.MULTI -> {
+                if (_multiConfig.value.points.isNotEmpty()) {
+                    _activePoints.value = _multiConfig.value.points
+                }
+            }
+            ClickerMode.GRID -> {
+                // Preserved for grid
+            }
+        }
     }
 
     fun attachAccessibilityService(service: AutoClickerAccessibilityService) {
@@ -137,6 +182,9 @@ object ClickerController {
         _isOverlayRunning.value = running
         if (!running && _isPlaying.value) {
             pauseClicking()
+        }
+        appContext?.let { ctx ->
+            AutoClickerTileService.requestTileUpdate(ctx)
         }
     }
 
@@ -163,6 +211,9 @@ object ClickerController {
         clickLoopJob = scope.launch {
             runClickLoop()
         }
+        appContext?.let { ctx ->
+            AutoClickerTileService.requestTileUpdate(ctx)
+        }
     }
 
     fun pauseClicking() {
@@ -170,11 +221,17 @@ object ClickerController {
         clickLoopJob?.cancel()
         clickLoopJob = null
         _activeTargetHighlight.value = null
+        appContext?.let { ctx ->
+            AutoClickerTileService.requestTileUpdate(ctx)
+        }
     }
 
     fun stopAndDismiss() {
         pauseClicking()
         _isOverlayRunning.value = false
+        appContext?.let { ctx ->
+            AutoClickerTileService.requestTileUpdate(ctx)
+        }
     }
 
     fun resetStats() {
@@ -194,14 +251,17 @@ object ClickerController {
                 )
             }
             ClickerMode.MULTI -> {
-                val savedPoints = _multiConfig.value.points
-                if (savedPoints.isNotEmpty()) {
-                    _activePoints.value = savedPoints
-                } else {
-                    _activePoints.value = listOf(
-                        ClickPoint(id = 1, x = centerX, y = centerY - 150f, label = "1"),
-                        ClickPoint(id = 2, x = centerX, y = centerY + 150f, label = "2")
-                    )
+                val currentPoints = _activePoints.value
+                if (currentPoints.isEmpty()) {
+                    val savedPoints = _multiConfig.value.points
+                    if (savedPoints.isNotEmpty()) {
+                        _activePoints.value = savedPoints
+                    } else {
+                        _activePoints.value = listOf(
+                            ClickPoint(id = 1, x = centerX, y = centerY - 150f, delayMs = 0L, durationMs = _multiConfig.value.pressDurationMs, label = "1"),
+                            ClickPoint(id = 2, x = centerX, y = centerY + 150f, delayMs = 0L, durationMs = _multiConfig.value.pressDurationMs, label = "2")
+                        )
+                    }
                 }
             }
             ClickerMode.GRID -> {
@@ -336,7 +396,7 @@ object ClickerController {
             id = nextId,
             x = defaultX + offsetX,
             y = defaultY + offsetY,
-            delayMs = _multiConfig.value.intervalMs,
+            delayMs = 0L, // 0L means use sequence default interval
             durationMs = _multiConfig.value.pressDurationMs,
             label = "$nextId"
         )
@@ -344,6 +404,14 @@ object ClickerController {
         _activePoints.value = currentList
         saveActivePointsToMultiConfig()
         return newPoint
+    }
+
+    fun updatePointSettings(id: Int, delayMs: Long, durationMs: Long) {
+        val currentList = _activePoints.value.map {
+            if (it.id == id) it.copy(delayMs = delayMs, durationMs = durationMs) else it
+        }
+        _activePoints.value = currentList
+        saveActivePointsToMultiConfig()
     }
 
     fun removeLastPoint(): ClickPoint? {
@@ -458,7 +526,12 @@ object ClickerController {
 
                         executeSingleClick(point, point.durationMs, config.randomJitterMs, config.randomRadiusPx)
 
-                        val delayAfter = if (point.delayMs > 0) point.delayMs else config.intervalMs
+                        val pointDelay = point.delayMs
+                        val delayAfter = if (pointDelay > 0 && !(pointDelay == 500L && config.intervalMs != 500L)) {
+                            pointDelay
+                        } else {
+                            config.intervalMs
+                        }
                         val effectiveDelay = if (config.randomJitterMs > 0) {
                             val jitter = Random.nextLong(-config.randomJitterMs, config.randomJitterMs + 1)
                             (delayAfter + jitter).coerceAtLeast(10L)

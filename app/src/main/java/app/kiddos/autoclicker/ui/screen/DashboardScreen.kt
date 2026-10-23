@@ -1,5 +1,7 @@
 package app.kiddos.autoclicker.ui.screen
 
+import android.app.StatusBarManager
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -46,11 +48,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.kiddos.autoclicker.R
 import app.kiddos.autoclicker.controller.ClickerController
 import app.kiddos.autoclicker.model.ClickerMode
+import app.kiddos.autoclicker.service.AutoClickerTileService
 
 @Composable
 fun DashboardScreen(
@@ -64,6 +69,7 @@ fun DashboardScreen(
     onNavigateToTest: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val isOverlayRunning by ClickerController.isOverlayRunning.collectAsState()
     val isPlaying by ClickerController.isPlaying.collectAsState()
     val currentMode by ClickerController.currentMode.collectAsState()
@@ -335,7 +341,67 @@ fun DashboardScreen(
             }
         }
 
-        // 5. User Guide Card
+        // 5. Quick Settings Shade Tile Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.TouchApp,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Text(
+                        text = "Quick Settings Shade Tile",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Swipe down from the top of your screen to toggle Auto Clicker at any moment without switching apps.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                if (AutoClickerTileService.isAddTileSupported()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = {
+                            AutoClickerTileService.requestAddTile(context) { result ->
+                                when (result) {
+                                    StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED -> {
+                                        Toast.makeText(context, R.string.quick_settings_tile_added, Toast.LENGTH_SHORT).show()
+                                    }
+                                    StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED -> {
+                                        Toast.makeText(context, R.string.quick_settings_tile_already_added, Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Add Tile to Quick Settings")
+                    }
+                } else {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "To add: swipe down twice from the top of your screen, tap the pencil/edit icon, and drag the Auto Clicker tile into your active tiles.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        // 6. User Guide Card
         OutlinedCard(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp)

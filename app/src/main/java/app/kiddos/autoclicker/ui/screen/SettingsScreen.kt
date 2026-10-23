@@ -23,10 +23,12 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -43,6 +45,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -419,6 +422,8 @@ private fun MultiClickSettingsTab(
     var randomJitterMs by remember(initialConfig) { mutableLongStateOf(initialConfig.randomJitterMs) }
     var randomRadiusPx by remember(initialConfig) { mutableIntStateOf(initialConfig.randomRadiusPx) }
 
+    var editingPoint by remember { mutableStateOf<ClickPoint?>(null) }
+
     val scrollState = rememberScrollState()
 
     Column(
@@ -458,7 +463,7 @@ private fun MultiClickSettingsTab(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    listOf(100L, 250L, 500L, 1000L).forEach { preset ->
+                    listOf(50L, 100L, 250L, 500L, 1000L).forEach { preset ->
                         FilterChip(
                             selected = intervalMs == preset,
                             onClick = { intervalMs = preset },
@@ -561,6 +566,8 @@ private fun MultiClickSettingsTab(
                         PointItemRow(
                             point = point,
                             index = index + 1,
+                            defaultIntervalMs = intervalMs,
+                            onEdit = { editingPoint = point },
                             onRemove = { ClickerController.removePointById(point.id) }
                         )
                         if (index < activePoints.size - 1) {
@@ -605,11 +612,18 @@ private fun MultiClickSettingsTab(
         ) {
             Button(
                 onClick = {
+                    val updatedPoints = ClickerController.activePoints.value.map { pt ->
+                        if (pt.delayMs == initialConfig.intervalMs || pt.delayMs == 500L || pt.delayMs <= 0L) {
+                            pt.copy(delayMs = 0L, durationMs = pressDurationMs)
+                        } else {
+                            pt.copy(durationMs = pressDurationMs)
+                        }
+                    }
                     val updated = MultiClickConfig(
                         intervalMs = intervalMs,
                         pressDurationMs = pressDurationMs,
                         loopCount = loopCount,
-                        points = ClickerController.activePoints.value,
+                        points = updatedPoints,
                         randomJitterMs = randomJitterMs,
                         randomRadiusPx = randomRadiusPx
                     )
@@ -641,12 +655,70 @@ private fun MultiClickSettingsTab(
 
         Spacer(modifier = Modifier.height(16.dp))
     }
+
+    editingPoint?.let { pt ->
+        var customDelayStr by remember(pt) {
+            mutableStateOf(if (pt.delayMs > 0) pt.delayMs.toString() else "")
+        }
+        var customDurationStr by remember(pt) {
+            mutableStateOf(pt.durationMs.toString())
+        }
+
+        AlertDialog(
+            onDismissRequest = { editingPoint = null },
+            title = { Text("Configure Target #${pt.id}") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Set a custom delay for this specific target, or leave blank/0 to follow the sequence default (${intervalMs}ms).",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = customDelayStr,
+                        onValueChange = { customDelayStr = it },
+                        label = { Text("Delay (ms, 0 = Default)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = customDurationStr,
+                        onValueChange = { customDurationStr = it },
+                        label = { Text("Press Duration (ms)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val d = customDelayStr.toLongOrNull() ?: 0L
+                        val dur = customDurationStr.toLongOrNull()?.coerceAtLeast(10L) ?: pressDurationMs
+                        ClickerController.updatePointSettings(pt.id, d.coerceAtLeast(0L), dur)
+                        editingPoint = null
+                    }
+                ) {
+                    Text("Apply")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { editingPoint = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
 @Composable
 private fun PointItemRow(
     point: ClickPoint,
     index: Int,
+    defaultIntervalMs: Long,
+    onEdit: () -> Unit,
     onRemove: () -> Unit
 ) {
     Card(
@@ -660,7 +732,7 @@ private fun PointItemRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                 Box(
                     modifier = Modifier
                         .size(32.dp)
@@ -681,21 +753,32 @@ private fun PointItemRow(
                         fontWeight = FontWeight.SemiBold,
                         style = MaterialTheme.typography.bodyMedium
                     )
+                    val delayDisplay = if (point.delayMs > 0) "${point.delayMs}ms (Custom)" else "${defaultIntervalMs}ms"
                     Text(
-                        text = "Pos: (${point.x.toInt()}px, ${point.y.toInt()}px) • Delay: ${point.delayMs}ms",
+                        text = "Pos: (${point.x.toInt()}px, ${point.y.toInt()}px) • Delay: $delayDisplay",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            IconButton(onClick = onRemove) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = "Remove point",
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(20.dp)
-                )
+            Row {
+                IconButton(onClick = onEdit) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = "Edit point delay",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                IconButton(onClick = onRemove) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Remove point",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
     }

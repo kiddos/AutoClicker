@@ -26,7 +26,7 @@ data class ClickPoint(
     val id: Int,
     var x: Float,
     var y: Float,
-    var delayMs: Long = 500L,
+    var delayMs: Long = 0L, // 0L means follow sequence default interval
     var durationMs: Long = 50L,
     var label: String = "P$id"
 )

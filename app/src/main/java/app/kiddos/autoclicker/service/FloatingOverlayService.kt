@@ -157,9 +157,12 @@ class FloatingOverlayService : Service() {
         val metrics = resources.displayMetrics
         val isLandscape = newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-        // Auto-switch sidebar orientation to horizontal when entering landscape
+        // Auto-switch sidebar orientation matching screen orientation
         if (isLandscape && !isSidebarHorizontal) {
             isSidebarHorizontal = true
+            recreateSideBarView()
+        } else if (!isLandscape && isSidebarHorizontal) {
+            isSidebarHorizontal = false
             recreateSideBarView()
         }
 
