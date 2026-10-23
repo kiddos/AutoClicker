@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Auto Clicker</string>
+    <string name="accessibility_service_name">Auto Clicker Accessibility Service</string>
+    <string name="accessibility_service_description">Enables simulated touch gestures and automatic clicks based on your configuration.</string>
+    <string name="notification_channel_name">Auto Clicker Overlay</string>
+    <string name="notification_channel_description">Active overlay notification for controlling the auto clicker sidebar</string>
+    <string name="notification_title">Auto Clicker Active</string>
+    <string name="notification_text">Floating sidebar is running. Tap to open app.</string>
+</resources>
