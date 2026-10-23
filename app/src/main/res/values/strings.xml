@@ -6,4 +6,15 @@
     <string name="notification_channel_description">Active overlay notification for controlling the auto clicker sidebar</string>
     <string name="notification_title">Auto Clicker Active</string>
     <string name="notification_text">Floating sidebar is running. Tap to open app.</string>
+    <string name="quick_settings_tile_label">Auto Clicker</string>
+    <string name="quick_settings_tile_subtitle_active">Active</string>
+    <string name="quick_settings_tile_subtitle_clicking">Clicking</string>
+    <string name="quick_settings_tile_subtitle_inactive">Off</string>
+    <string name="quick_settings_tile_subtitle_setup">Setup required</string>
+    <string name="quick_settings_permission_required">Please enable Accessibility and Overlay permissions first</string>
+    <string name="quick_settings_card_title">Quick Settings Tile</string>
+    <string name="quick_settings_card_desc">Swipe down from the top of your screen to toggle Auto Clicker from anywhere.</string>
+    <string name="quick_settings_add_tile_btn">Add Tile to Quick Settings</string>
+    <string name="quick_settings_tile_added">Quick Settings tile added!</string>
+    <string name="quick_settings_tile_already_added">Auto Clicker tile is already in your Quick Settings.</string>
 </resources>

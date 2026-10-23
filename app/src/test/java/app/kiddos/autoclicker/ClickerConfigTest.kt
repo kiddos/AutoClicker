@@ -65,4 +65,52 @@ class ClickerConfigTest {
         ClickerController.setMode(ClickerMode.MULTI)
         assertEquals(ClickerMode.MULTI, ClickerController.currentMode.value)
     }
+
+    @Test
+    fun testMultiClickDelayUpdateRespectsNewInterval() {
+        ClickerController.setMode(ClickerMode.MULTI)
+        ClickerController.initializePointsForCurrentMode(1080, 2400)
+
+        // Set interval to 120ms
+        ClickerController.updateMultiConfig(MultiClickConfig(intervalMs = 120L))
+        assertEquals(120L, ClickerController.multiConfig.value.intervalMs)
+
+        // Active points should have 0L (meaning follow sequence default of 120ms)
+        for (pt in ClickerController.activePoints.value) {
+            assertEquals(0L, pt.delayMs)
+        }
+
+        // Add a new point and verify it also defaults to 0L
+        val added = ClickerController.addPoint(300f, 400f)
+        assertEquals(0L, added.delayMs)
+
+        // Change interval again to 30ms
+        ClickerController.updateMultiConfig(MultiClickConfig(intervalMs = 30L))
+        assertEquals(30L, ClickerController.multiConfig.value.intervalMs)
+        for (pt in ClickerController.activePoints.value) {
+            assertEquals(0L, pt.delayMs)
+        }
+    }
+
+    @Test
+    fun testCustomPointDelayPreservation() {
+        ClickerController.setMode(ClickerMode.MULTI)
+        ClickerController.initializePointsForCurrentMode(1080, 2400)
+
+        val firstPt = ClickerController.activePoints.value.first()
+        // Set a custom delay of 1500ms on first point
+        ClickerController.updatePointSettings(firstPt.id, 1500L, 50L)
+
+        // Update sequence default to 100ms
+        ClickerController.updateMultiConfig(MultiClickConfig(intervalMs = 100L))
+
+        val updatedFirst = ClickerController.activePoints.value.first { it.id == firstPt.id }
+        assertEquals(1500L, updatedFirst.delayMs)
+
+        // Other points should still be 0L (using default 100ms)
+        val otherPoints = ClickerController.activePoints.value.filter { it.id != firstPt.id }
+        for (pt in otherPoints) {
+            assertEquals(0L, pt.delayMs)
+        }
+    }
 }
