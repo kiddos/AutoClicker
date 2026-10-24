@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">Auto Clicker</string>
     <string name="accessibility_service_name">Auto Clicker Accessibility Service</string>
-    <string name="accessibility_service_description">Enables simulated touch gestures and automatic clicks based on your configuration.</string>
+    <string name="accessibility_service_description">Enables simulated touch gestures and automated clicking to assist users with motor limitations and repetitive tapping tasks.</string>
     <string name="notification_channel_name">Auto Clicker Overlay</string>
     <string name="notification_channel_description">Active overlay notification for controlling the auto clicker sidebar</string>
     <string name="notification_title">Auto Clicker Active</string>
@@ -17,4 +17,20 @@
     <string name="quick_settings_add_tile_btn">Add Tile to Quick Settings</string>
     <string name="quick_settings_tile_added">Quick Settings tile added!</string>
     <string name="quick_settings_tile_already_added">Auto Clicker tile is already in your Quick Settings.</string>
+
+    <!-- Accessibility Prominent Disclosure (Google Play Compliance) -->
+    <string name="accessibility_disclosure_title">Accessibility Service Disclosure</string>
+    <string name="accessibility_disclosure_subtitle">Required for automated click and gesture simulation</string>
+    <string name="accessibility_disclosure_why_title">Why We Need This API</string>
+    <string name="accessibility_disclosure_why_desc">Auto Clicker requires Android\'s AccessibilityServices API solely to perform automated touch gestures (taps and clicks) on your screen on your behalf. This is the core functionality that enables automatic clicking.</string>
+    <string name="accessibility_disclosure_how_title">How It Is Used</string>
+    <string name="accessibility_disclosure_how_desc">The app uses Android\'s dispatchGesture() API to dispatch touch inputs at the precise screen coordinates and time intervals you configure across Single, Multi, and Grid click modes.</string>
+    <string name="accessibility_disclosure_privacy_title">Privacy &amp; Data Protection</string>
+    <string name="accessibility_disclosure_privacy_point1">No personal or sensitive user data is collected, stored, or shared.</string>
+    <string name="accessibility_disclosure_privacy_point2">No screen content, window hierarchies, or messages are read or monitored.</string>
+    <string name="accessibility_disclosure_privacy_point3">No keystrokes, passwords, or payment credentials are recorded.</string>
+    <string name="accessibility_disclosure_privacy_point4">The app is 100% offline and requests zero internet permissions.</string>
+    <string name="accessibility_disclosure_agree_btn">Agree &amp; Enable in Settings</string>
+    <string name="accessibility_disclosure_cancel_btn">Deny / Cancel</string>
+    <string name="accessibility_disclosure_view_disclosure">View Disclosure</string>
 </resources>
